@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import lxml
 
-
+#dates from yahoo_fin module are one off so we need to add one day to the date to get the correct date
 def datePlusOne(str):
     date = datetime.strptime(str, '%b %d, %Y')
     addOne = timedelta(days = 1)
@@ -17,6 +17,7 @@ def datePlusOne(str):
     strDate = date.strftime('%b %d, %Y')
     return strDate
 
+#checks whether the passed data is a float
 def is_float(s):
     try:
         float(s)
@@ -24,6 +25,7 @@ def is_float(s):
     except ValueError:
         return False
 
+#updates a cell in the passed spreadsheet, taking into account rate limits from the Google API
 def UpdateCellFunc(spreadsheet, row, column, value):
 	while True:
 		try:
@@ -33,16 +35,21 @@ def UpdateCellFunc(spreadsheet, row, column, value):
 		except:
 			time.sleep(1)
 
+#gspread authentication
 scope = ['https://www.googleapis.com/auth/spreadsheets', "https://www.googleapis.com/auth/drive.file", "https://www.googleapis.com/auth/drive"]
 
-creds =  ServiceAccountCredentials.from_json_keyfile_name('/home/pi/Documents/Python/google_creds.json', scope)
+#must pass path of json keyfile in this function
+json_file = '/home/pi/Documents/Python/google_creds.json'
+creds =  ServiceAccountCredentials.from_json_keyfile_name(json_file, scope)
 
 client = gspread.authorize(creds)
 
+#opens a specific spreadsheet on your account.
 sheet = client.open('Portfolio').sheet1
 
 rowj = 0
 
+#get index of first empty row, this means we have that many tickers in our spreadsheet
 for j in range(2, 40):
     time.sleep(1.01)
     rowj = j
@@ -51,10 +58,12 @@ for j in range(2, 40):
 
 rowi = 0
 
+#find data for each ticker and input those values into the spreadsheet.
 for i in range(2, rowj):
     rowi = i
     ticker = sheet.cell(i, 1).value
     data = si.get_stats(ticker)
+    #after every gspread call, wait 1 second to 
     time.sleep(1)
     ex_date = data['Value'][26]
     UpdateCellFunc(sheet, i, 22, datePlusOne(ex_date))
@@ -98,5 +107,6 @@ for i in range(2, rowj):
 now = datetime.now()
 #minus_five = timedelta(hours = 5)
 #now_EST = now - minus_five
+#update a cell with the current time so we know when the script last ran.
 UpdateCellFunc(sheet, rowi + 6, 3, now.strftime('%H:%M:%S %b %d, %Y'))
 #sheet.update_cell(rowi + 6, 3, now.strftime('%H:%M:%S %b %d, %Y'))
